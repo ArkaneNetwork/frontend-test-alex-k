@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
 import {
-    Button, Col, Form, Row, Table
+    Button, Col, Form, Row, Table, Alert
 } from 'react-bootstrap';
 import {connect} from "react-redux";
-import {CHANGE_FILTER, SAVE_RELATION_REQUEST} from "../../actions";
+import {CHANGE_FILTER, ENABLE_REVERSE, SAVE_RELATION_REQUEST} from "../../actions";
 import styles from './index.module.css';
 
 const RELATIONS = ['synonym', 'antonym', 'related'];
@@ -16,8 +16,20 @@ class WordRelations extends Component {
             firstWord: '',
             secondWord: '',
             relation: null,
-            relationFilter: 'all'
+            relationFilter: 'all',
+            inverseOption: 'off',
+            errorMessage: ''
         }
+    }
+
+    validationField = (field) => {
+        const regex = /^[A-Za-z\s]+$/;
+        if(!regex.test(field)) {
+            this.setState({errorMessage: 'You should use only A-Z or a-z letters  and space'})
+            return false;
+        }
+
+        return true
     }
 
     handleSubmit = (event) => {
@@ -27,13 +39,18 @@ class WordRelations extends Component {
         if (form.checkValidity() === false) {
             this.setState({validated: true})
         } else {
+
             const {firstWord, secondWord, relation} = this.state;
-            const data = {
-                firstWord: firstWord.toLowerCase(),
-                secondWord: secondWord.toLowerCase(),
-                relation
+            const checkingStatusFWord = this.validationField(firstWord);
+            const checkingStatusSWord = this.validationField(secondWord);
+            if(checkingStatusFWord && checkingStatusSWord) {
+                const data = {
+                    firstWord: firstWord.toLowerCase().trim(),
+                    secondWord: secondWord.toLowerCase().trim(),
+                    relation
+                }
+                this.props.saveRelation(data)
             }
-            this.props.saveRelation(data)
         }
 
     };
@@ -44,14 +61,23 @@ class WordRelations extends Component {
 
     changeFilter = (e) => {
         this.props.changeFilter({type: e.target.value})
+    };
+
+    changeInverseStatus = (e) => {
+        this.setState({[e.target.name]: e.target.value});
+        this.props.addReverse();
     }
 
     render() {
-        const {validated} = this.state;
+        const {validated, inverseOption, errorMessage} = this.state;
         const {relations} = this.props;
 
         return (
             <React.Fragment>
+                {errorMessage && <Alert key={'alert'} variant={'danger'}>
+                    {errorMessage}
+                </Alert>}
+
                 <Form noValidate validated={validated} onSubmit={this.handleSubmit}>
                     <Row>
                         <Col>
@@ -86,6 +112,12 @@ class WordRelations extends Component {
                                 {RELATIONS.map(elem => <option value={elem}>{elem}</option>)}
                             </Form.Control>
                         </Col>
+                        <Col>
+                            <Form.Check type="checkbox" name="inverseOption"
+                                        className={styles['inverse-mode']}
+                                        label="Inverse relation" value={inverseOption === 'on' ? 'off' : 'on'}
+                                        onChange={this.changeInverseStatus}/>
+                        </Col>
                     </Row>
                 </Form>
 
@@ -97,6 +129,7 @@ class WordRelations extends Component {
                                 <th>w1</th>
                                 <th>w2</th>
                                 <th>relation</th>
+                                {inverseOption === 'on' && <th>inversion</th>}
                             </tr>
                             </thead>
                             <tbody>
@@ -105,6 +138,7 @@ class WordRelations extends Component {
                                     <td>{elem.firstWord}</td>
                                     <td>{elem.secondWord}</td>
                                     <td>{elem.relation}</td>
+                                    {inverseOption === 'on' && <td>{elem.status ? 'yes' : 'no'}</td>}
                                 </tr>)
                             )}
                             </tbody>
@@ -130,6 +164,9 @@ const mapDispatchToProps = (dispatch) => ({
     changeFilter: (data) => {
         dispatch({ type: CHANGE_FILTER, data });
     },
+    addReverse: () => {
+        dispatch({ type: ENABLE_REVERSE });
+    }
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(WordRelations);
